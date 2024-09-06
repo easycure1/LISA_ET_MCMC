@@ -9,6 +9,7 @@ data <- beyondWhittle::sim_varma(model=list(ar=param_ar, ma=param_ma, sigma=para
                                  n=n, d=2)
 
 
+
 source('_include_multivariate_cluster.R')
 
 Ntotal <- 3000 # TODO 80000
