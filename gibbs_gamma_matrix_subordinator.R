@@ -7,7 +7,7 @@
 normalizedBernsteins <- F # normalize Bernstein polynomials in maximum norm (may or may not imrpove mixing)
 #
 
-## source("../gibbs_util.R")
+# source("../gibbs_util.R")
 # source("gibbs_multivariate_util.R")
 # Sys.setenv("PKG_CXXFLAGS"="-std=c++11") # lambda function using C++11
 # library(Rcpp)
