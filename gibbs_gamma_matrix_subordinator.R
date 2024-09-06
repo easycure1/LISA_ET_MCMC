@@ -19,13 +19,15 @@ normalizedBernsteins <- F # normalize Bernstein polynomials in maximum norm (may
 ##
 gibbs_m_nuisance <- function(data,
                              mcmc_params,
-                             seg_n,
+                             seg_n=1,
+                             truncation=FALSE,
+                             trunc_N=NULL,
                              corrected,
                              prior_params,
                              model_params) {
   
   warning("Using conjugate sampling for theta. TODO: Get that consistent with MH!!")
-
+  
   # --- STUFF TODO ----------------------------
   # -------------------------------------------
   # + implement pure parametric VAR nuisance model
@@ -65,9 +67,21 @@ gibbs_m_nuisance <- function(data,
   stopifnot(!is.null(seg_n)); stopifnot(seg_n>0) 
   seg_n <- seg_n
   n <- nrow(data) / seg_n
+  n_init <- n ## Store the original full length of each segment
   data_new <- array(rep(NA, n*d*seg_n), dim = c(n, d, seg_n))
   for (ii in 1:seg_n) {
     data_new[,,ii] <- data[(n*(ii-1)+1):(n*ii),]
+  }
+  
+  # Trunction of the Fourier transforms
+  if (truncation) {
+    stopifnot(!is.null(trunc_N))
+    if (trunc_N <= 0 || trunc_N > (n+2)/2) {
+      stop("The number of trunction should be an integer that is positive and smaller than the length of the Fourier transform of each segment")
+    }
+    truncation <- truncation
+    trunc_N <- trunc_N
+    n <- trunc_N*2 + 2 ##? need to check it again
   }
   
   # MCMC parameters
@@ -91,7 +105,7 @@ gibbs_m_nuisance <- function(data,
   adaption.batchSize <- mcmc_params$adaption.batchSize
   stopifnot(!is.null(mcmc_params$adaption.targetAcceptanceRate)); stopifnot(mcmc_params$adaption.targetAcceptanceRate>0 && mcmc_params$adaption.targetAcceptanceRate<1)
   adaption.targetAcceptanceRate <- mcmc_params$adaption.targetAcceptanceRate
-
+  
   # AGAMMA PRIOR PAREMETERS
   stopifnot(!is.null(prior_params$prior.cholesky))
   prior.cholesky <- prior_params$prior.cholesky
@@ -172,7 +186,7 @@ gibbs_m_nuisance <- function(data,
   } else {
     boundaryFrequecies <- 1
   }
-
+  
   omega <- omegaFreq(n)
   N <- length(omega)
   lambda <- pi * omega
@@ -297,22 +311,22 @@ gibbs_m_nuisance <- function(data,
     
     #storage segmented data
     if (seg_n == 1) {
-      noise <- array(rep(NA, n*d*1), dim = c(n, d, 1))
+      noise <- array(rep(NA, n_init*d*1), dim = c(n_init, d, 1))
       FZ <- array(rep(NA, N*d*1), dim = c(N, d, 1))
       noise[,,1] <- get_noise(data_new, theta[,i])
       FZ[,,1] <- mdft(noise)
     } else {
-      noise <- array(rep(NA, n*d*seg_n), dim = c(n, d, seg_n))
+      noise <- array(rep(NA, n_init*d*seg_n), dim = c(n_init, d, seg_n))
       FZ <- array(rep(NA, N*d*seg_n), dim = c(N, d, seg_n))
       for (ii in 1:seg_n) {
         noise[,,ii] <- get_noise(data_new[,,ii], theta[,i])
-        FZ[,,ii] <- mdft(noise[,,ii])
+        FZ[,,ii] <- mdft(noise[,,ii])[1:N,]
       }
     }
     
     #noise <- get_noise(data, theta[,i])  # noise = data - signal
     #FZ <- mdft(noise)  # Frequency domain
-
+    
     if (i==1) {
       ##
       ## f.store: previous lpost value to save some computation time in MH steps
@@ -718,11 +732,11 @@ gibbs_m_nuisance <- function(data,
                                    excludeBoundary=F, # note
                                    verbose=verbose)
       ##
-
+      
       alphaTheta <- min(0, f.theta.star + lprior_theta(theta_star) - 
-                         f.theta - lprior_theta(theta[,i]) +
-                         theta_prop$lprop_previous_theta - 
-                         theta_prop$lprop_theta_star)
+                          f.theta - lprior_theta(theta[,i]) +
+                          theta_prop$lprop_previous_theta - 
+                          theta_prop$lprop_theta_star)
       if (log(runif(1,0,1)) < alphaTheta) {
         theta[,i+1] <- theta_star
         f.store <- lpost_matrixGamma(omega=omega,
@@ -891,32 +905,34 @@ gibbs_m_nuisance <- function(data,
   ## Return stuff
   ##
   return(list(#data=data,
-              #k=k,
-              #r=r,
-              #Z=Z,
-              #U=U,
-              #U__phi=U__phi,
-              #W=W,
-              fpsd.s=fpsd.s,
-              fpsd.mean=fpsd.mean,
-              fpsd.s05=fpsd.s05,
-              fpsd.s95=fpsd.s95,
-              # fpsd.s025=fpsd.s025,
-              # fpsd.s975=fpsd.s975,
-              # fpsd.s005=fpsd.s005,
-              # fpsd.s995=fpsd.s995,
-              # fpsd.uci05=fpsd.uci05,
-              # fpsd.uci95=fpsd.uci95,
-              fpsd.uuci05=fpsd.uuci05,
-              fpsd.uuci95=fpsd.uuci95,
-              coherence.s = coherence.s,
-              coherence.s05 = coherence.s05,
-              coherence.s95 = coherence.s95,
-              llikeTrace=llikeTrace,
-              lpostTrace=lpostTrace, # log posterior: don't discard burnin to investigate convergence
-              lpriorTrace=lpriorTrace,
-              #param__phi=param__phi,
-              #theta=theta,
-              time_d))#,
-              #data_forecast=data_forecast))
+    #k=k,
+    #r=r,
+    #Z=Z,
+    #U=U,
+    #U__phi=U__phi,
+    #W=W,
+    fpsd.s=fpsd.s,
+    fpsd.mean=fpsd.mean,
+    fpsd.s05=fpsd.s05,
+    fpsd.s95=fpsd.s95,
+    # fpsd.s025=fpsd.s025,
+    # fpsd.s975=fpsd.s975,
+    # fpsd.s005=fpsd.s005,
+    # fpsd.s995=fpsd.s995,
+    # fpsd.uci05=fpsd.uci05,
+    # fpsd.uci95=fpsd.uci95,
+    fpsd.uuci05=fpsd.uuci05,
+    fpsd.uuci95=fpsd.uuci95,
+    coherence.s = coherence.s,
+    coherence.s05 = coherence.s05,
+    coherence.s95 = coherence.s95,
+    llikeTrace=llikeTrace,
+    lpostTrace=lpostTrace, # log posterior: don't discard burnin to investigate convergence
+    lpriorTrace=lpriorTrace,
+    #param__phi=param__phi,
+    #theta=theta,
+    time_d))#,
+  #data_forecast=data_forecast))
 }
+
+
