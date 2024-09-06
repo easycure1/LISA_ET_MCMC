@@ -19,8 +19,6 @@ source("gibbs_gamma_matrix_subordinator_core.R")
 sourceCpp("gibbs_multivariate_util.cpp")
 source("gibbs_multivariate_util.R")
 
-source("gibbs_VAR_nuisance.R")
-
 sourceCpp("mittelbach_util.cpp")
 source("mittelbach_util.R")
 
