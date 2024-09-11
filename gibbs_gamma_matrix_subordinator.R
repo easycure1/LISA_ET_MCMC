@@ -313,8 +313,8 @@ gibbs_m_nuisance <- function(data,
     if (seg_n == 1) {
       noise <- array(rep(NA, n_init*d*1), dim = c(n_init, d, 1))
       FZ <- array(rep(NA, N*d*1), dim = c(N, d, 1))
-      noise[,,1] <- get_noise(data_new, theta[,i])
-      FZ[,,1] <- mdft(noise)
+      noise[,,1] <- get_noise(data_new[,,1], theta[,i])
+      FZ[,,1] <- mdft(noise[,,1])[1:N,]
     } else {
       noise <- array(rep(NA, n_init*d*seg_n), dim = c(n_init, d, seg_n))
       FZ <- array(rep(NA, N*d*seg_n), dim = c(N, d, seg_n))
